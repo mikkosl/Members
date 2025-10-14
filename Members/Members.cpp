@@ -11,6 +11,7 @@
 #define IDC_SURNAME   202
 #define IDC_CITY      203
 #define IDC_ADD_BUTTON 204
+#define IDC_REMOVE_BUTTON 205
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -73,8 +74,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         sqlite3_close(db);                    // Close the database
     }
     
-    
-
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_MEMBERS, szWindowClass, MAX_LOADSTRING);
@@ -172,10 +171,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    wchar_t firstName[100], surname[100], city[100];
     std::string last, first, town;
-    const char* sql;
-    int rc;
 
     switch (message)
     {
@@ -218,8 +214,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 sqlite3* db = nullptr;
                 if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
-                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
-                    return 0;
+                   MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                   return 0;
                 }
 
                 sqlite3_stmt* stmt = nullptr;
@@ -249,7 +245,73 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 return 0;
             }
             break;
-            case IDM_ABOUT:
+            case ID_MEMBER_REMOVE:
+            {
+                CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
+                    20, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    110, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
+                    20, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    110, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                    20, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    110, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+
+                CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    110, 120, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
+            }
+            break;
+            case IDC_REMOVE_BUTTON:
+            {
+                wchar_t firstName[100], surname[100], city[100];
+                GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), firstName, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_CITY), city, 100);
+
+                std::string last = toUtf8(surname);
+                std::string first = toUtf8(firstName);
+                std::string town = toUtf8(city);
+                const char* sql = "DELETE FROM Members WHERE surname = ? AND firstName = ? AND city = ?;";
+
+                sqlite3* db = nullptr;
+                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                    return 0;
+                }
+
+                sqlite3_stmt* stmt = nullptr;
+                int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                if (rc != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
+                    sqlite3_close(db);
+                    return 0;
+                }
+
+                sqlite3_bind_text(stmt, 1, last.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 2, first.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 3, town.c_str(), -1, SQLITE_TRANSIENT);
+
+                rc = sqlite3_step(stmt);
+                if (rc != SQLITE_DONE) {
+                    std::wstring errMsgW = utf8ToWstring(sqlite3_errmsg(db));
+                    MessageBox(hWnd, errMsgW.c_str(), L"Remove failed: ", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    // Clear the input fields after successful delete
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), L"");
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), L"");
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_CITY), L"");
+                }
+
+                sqlite3_finalize(stmt);
+                return 0;
+            }
+            break; case IDM_ABOUT:
             {
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             }
