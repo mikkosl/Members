@@ -29,6 +29,7 @@ std::string filePath;
 int currentPage = 0;
 const int MEMBERS_PER_PAGE = 40;
 HWND hMoreButton = NULL;
+HWND hBackButton = NULL;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -232,8 +233,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     sqlite3_finalize(stmt);
                     InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
                 }
-                break;
             }
+            break;
             case ID_MEMBER_ADD:
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
                     600, 20, 80, 20, hWnd, NULL, NULL, NULL);
@@ -252,7 +253,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                     610, 120, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
-                break;
+            break;
             case IDC_ADD_BUTTON:
             {
                 wchar_t firstName[100], surname[100], city[100];
@@ -360,7 +361,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 sqlite3_finalize(stmt);
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
-                return 0;
             }
             break; 
             case IDC_MORE_BUTTON:
@@ -448,10 +448,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (!hMoreButton) {
                     hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                         600, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
-                    hMoreButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    hBackButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                         700, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
                 } else {
                     ShowWindow(hMoreButton, SW_SHOW);
+                    ShowWindow(hBackButton, SW_SHOW);
                 }
             } else {
                 if (hMoreButton) ShowWindow(hMoreButton, SW_HIDE);
