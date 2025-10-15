@@ -15,6 +15,7 @@
 #define IDC_ADD_BUTTON 204
 #define IDC_REMOVE_BUTTON 205
 #define IDC_MORE_BUTTON 206
+#define IDC_BACK_BUTTON 207
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -25,6 +26,9 @@ int rc;
 sqlite3_stmt* stmt = nullptr;
 sqlite3* db = nullptr;
 std::string filePath;
+int currentPage = 0;
+const int MEMBERS_PER_PAGE = 40;
+HWND hMoreButton = NULL;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -359,6 +363,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 return 0;
             }
             break; 
+            case IDC_MORE_BUTTON:
+            {
+                currentPage++;
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the next page
+            }
+			break;
+            case IDC_BACK_BUTTON:
+            {
+                if (currentPage > 0) currentPage--;
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the previous page
+			}
+			break;
             case IDM_ABOUT:
             {
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
@@ -403,7 +419,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             int y = 10;
 			std::wstring rowStr;
             
-            for (int i = 0; i < 500 && !memberList[i].empty(); ++i) {
+            int totalMembers = 0;
+            for (int i = 0; i < 500 && !memberList[i].empty(); ++i) ++totalMembers;
+            int startIdx = currentPage * MEMBERS_PER_PAGE;
+            int endIdx = startIdx + MEMBERS_PER_PAGE;
+            if (endIdx > totalMembers) endIdx = totalMembers;
+
+            for (int i = startIdx; i < endIdx && !memberList[i].empty(); ++i) {
                 if (i < 9) rowStr = L"[00" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else if (i < 99) rowStr = L"[0" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else rowStr = L"[" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
@@ -415,16 +437,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				if (i % 40 == 0 && i > 0) {
                     x = 20;
                     y = 10;
-             
-                    CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                        610, 150, 200, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
-
-                  //  InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
                 }
 
                 TextOutW(hdc, x, y, rowStr.c_str(), (int)memberList[i].length() + 7);
                 y += 20; // Move down for next line
             }
+
+            // After drawing, handle the More button:
+            if (endIdx < totalMembers) {
+                if (!hMoreButton) {
+                    hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                        600, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
+                    hMoreButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                        700, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
+                } else {
+                    ShowWindow(hMoreButton, SW_SHOW);
+                }
+            } else {
+                if (hMoreButton) ShowWindow(hMoreButton, SW_HIDE);
+            }
+
             EndPaint(hWnd, &ps);
         }
         break;
