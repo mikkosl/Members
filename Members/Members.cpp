@@ -5,6 +5,7 @@
 #include "Members.h"
 #include <string>
 #include <locale>
+#include <vector>
 
 #define MAX_LOADSTRING 100
 #define IDC_FIRSTNAME 201
@@ -17,6 +18,7 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+std::wstring memberList[500];
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -171,34 +173,39 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    std::string last, first, town;
+    std::wstring last, first, town;
+    int rc;
+    sqlite3_stmt* stmt = nullptr;
+    sqlite3* db = nullptr;
+    //std::wstring memberList = L"Members:\n";
 
     switch (message)
     {
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
+
             // Parse the menu selections:
             switch (wmId)
             {
             case ID_MEMBER_ADD:
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
-                    20, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 20, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    110, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
+                    710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
-                    20, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 50, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    110, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
+                    710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
-                    20, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 80, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    110, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
 
                 CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    110, 120, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
+                    610, 120, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
                 break;
             case IDC_ADD_BUTTON:
             {
@@ -218,8 +225,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                    return 0;
                 }
 
-                sqlite3_stmt* stmt = nullptr;
-                int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
                 if (rc != SQLITE_OK) {
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
                     sqlite3_close(db);
@@ -242,28 +248,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
 
                 sqlite3_finalize(stmt);
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display new rows
                 return 0;
             }
             break;
             case ID_MEMBER_REMOVE:
             {
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
-                    20, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 20, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    110, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
+                    710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
-                    20, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 50, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    110, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
+                    710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
-                    20, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 80, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    110, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
 
                 CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    110, 120, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
+                    610, 120, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
             }
             break;
             case IDC_REMOVE_BUTTON:
@@ -284,8 +291,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     return 0;
                 }
 
-                sqlite3_stmt* stmt = nullptr;
-                int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
                 if (rc != SQLITE_OK) {
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
                     sqlite3_close(db);
@@ -309,9 +315,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
 
                 sqlite3_finalize(stmt);
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
                 return 0;
             }
-            break; case IDM_ABOUT:
+            break; 
+            case ID_MEMBER_DISPLAYALL:
+            {
+                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                    return 0;
+                }
+                const char* sql = "SELECT surname, firstName, city FROM Members;";
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                if (rc != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
+                    sqlite3_close(db);
+                    return 0;
+                }
+                int i = 0;
+                for (int j = 0; j < 500; ++j) {
+                    memberList[j].clear();
+                }
+                while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+                    const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+                    const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                    const char* city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                    memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(city) + L"\n";
+                    i++;
+                }
+                if (rc != SQLITE_DONE) MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to retrieve data: ", MB_OK | MB_ICONERROR);
+                sqlite3_finalize(stmt);
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display new rows
+                return 0;
+			}
+            case IDM_ABOUT:
             {
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             }
@@ -320,7 +357,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DestroyWindow(hWnd);
                 break;
             default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
+                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                    return 0;
+                }
+                const char* sql = "SELECT surname, firstName, city FROM Members;";
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                if (rc != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
+                    sqlite3_close(db);
+                    return 0;
+                }
+                int i = 0;
+                for (int j = 0; j < 500; ++j) {
+                    memberList[j].clear();
+                }
+                while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+                    const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+                    const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                    const char* city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                    memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(city) + L"\n";
+                    i++;
+                }
+                    return DefWindowProc(hWnd, message, wParam, lParam);
             }
         }
         break;
@@ -329,6 +388,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: Add any drawing code that uses hdc here...
+            int y = 10;
+            for (int i = 0; i < 500 && !memberList[i].empty(); ++i) {
+                TextOutW(hdc, 20, y, memberList[i].c_str(), (int)memberList[i].length());
+                y += 20; // Move down for next line
+            }
             EndPaint(hWnd, &ps);
         }
         break;
