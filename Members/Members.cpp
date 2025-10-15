@@ -6,6 +6,7 @@
 #include <string>
 #include <locale>
 #include <vector>
+#include <commdlg.h> // Add this at the top of your file
 
 #define MAX_LOADSTRING 100
 #define IDC_FIRSTNAME 201
@@ -19,6 +20,9 @@ HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 std::wstring memberList[500];
+int rc;
+sqlite3_stmt* stmt = nullptr;
+sqlite3* db = nullptr;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -56,26 +60,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    sqlite3* db = nullptr;
-    char* errMsg = nullptr;
-    const char* createTableSQL =
-        "CREATE TABLE IF NOT EXISTS Members ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "surname TEXT NOT NULL, "
-        "firstName TEXT NOT NULL, "
-        "city TEXT);";
-
-    if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
-        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database: ", MB_OK | MB_ICONERROR);
-        return 1;
-    }
-
-    if (sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        MessageBox(nullptr, utf8ToWstring(errMsg).c_str(), L"Table creation failed: ", MB_OK | MB_ICONERROR);
-        sqlite3_free(errMsg);
-        sqlite3_close(db);                    // Close the database
-    }
-    
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_MEMBERS, szWindowClass, MAX_LOADSTRING);
@@ -174,8 +158,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     std::wstring last, first, town;
-    int rc;
-    sqlite3_stmt* stmt = nullptr;
     sqlite3* db = nullptr;
     //std::wstring memberList = L"Members:\n";
 
@@ -188,6 +170,65 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
+            case ID_FILE_OPEN:
+            {
+			    OPENFILENAME ofn = { 0 };
+                TCHAR szFile[MAX_PATH] = { 0 };
+                ofn.lStructSize = sizeof(ofn);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = szFile;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrFilter = L"Database Files (*.db)\0*.db\0All Files (*.*)\0*.*\0";
+                ofn.nFilterIndex = 1;
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+                if (GetOpenFileName(&ofn)) {
+                    // Convert TCHAR to std::string (UTF-8) for sqlite3_open
+                    std::string filePath = toUtf8(szFile);
+
+                    char* errMsg = nullptr;
+                    const char* createTableSQL =
+                        "CREATE TABLE IF NOT EXISTS Members ("
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                        "surname TEXT NOT NULL, "
+                        "firstName TEXT NOT NULL, "
+                        "city TEXT);";
+
+                    if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
+                        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database: ", MB_OK | MB_ICONERROR);
+                        return 1;
+                    }
+
+                    if (sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+                        MessageBox(nullptr, utf8ToWstring(errMsg).c_str(), L"Table creation failed: ", MB_OK | MB_ICONERROR);
+                        sqlite3_free(errMsg);
+                        sqlite3_close(db);                    // Close the database
+                    }
+
+                    const char* sql = "SELECT surname, firstName, city FROM Members;";
+                    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                    if (rc != SQLITE_OK) {
+                        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
+                        sqlite3_close(db);
+                        return 0;
+                    }
+                    int i = 0;
+                    for (int j = 0; j < 500; ++j) {
+                        memberList[j].clear();
+                    }
+                    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+                        const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+                        const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                        const char* city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                        memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(city) + L"\n";
+                        i++;
+                    }
+                    if (rc != SQLITE_DONE) MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to retrieve data: ", MB_OK | MB_ICONERROR);
+                    sqlite3_finalize(stmt);
+                    InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
+                }
+                break;
+            }
             case ID_MEMBER_ADD:
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
                     600, 20, 80, 20, hWnd, NULL, NULL, NULL);
@@ -319,35 +360,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 return 0;
             }
             break; 
-            case ID_MEMBER_DISPLAYALL:
-            {
-                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
-                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
-                    return 0;
-                }
-                const char* sql = "SELECT surname, firstName, city FROM Members;";
-                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-                if (rc != SQLITE_OK) {
-                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
-                    sqlite3_close(db);
-                    return 0;
-                }
-                int i = 0;
-                for (int j = 0; j < 500; ++j) {
-                    memberList[j].clear();
-                }
-                while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-                    const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-                    const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-                    const char* city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-                    memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(city) + L"\n";
-                    i++;
-                }
-                if (rc != SQLITE_DONE) MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to retrieve data: ", MB_OK | MB_ICONERROR);
-                sqlite3_finalize(stmt);
-                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display new rows
-                return 0;
-			}
             case IDM_ABOUT:
             {
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
