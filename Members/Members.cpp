@@ -401,8 +401,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: Add any drawing code that uses hdc here...
             int y = 10;
+			std::wstring rowStr;
             for (int i = 0; i < 500 && !memberList[i].empty(); ++i) {
-                TextOutW(hdc, 20, y, memberList[i].c_str(), (int)memberList[i].length());
+                if (i < 9) rowStr = L"[00" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
+                else if (i < 99) rowStr = L"[0" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
+                else rowStr = L"[" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
+                
+                TextOutW(hdc, 20, y, rowStr.c_str(), (int)memberList[i].length() + 7);
                 y += 20; // Move down for next line
             }
             EndPaint(hWnd, &ps);
