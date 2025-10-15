@@ -14,6 +14,7 @@
 #define IDC_CITY      203
 #define IDC_ADD_BUTTON 204
 #define IDC_REMOVE_BUTTON 205
+#define IDC_MORE_BUTTON 206
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -23,6 +24,7 @@ std::wstring memberList[500];
 int rc;
 sqlite3_stmt* stmt = nullptr;
 sqlite3* db = nullptr;
+std::string filePath;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -159,7 +161,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     std::wstring last, first, town;
     sqlite3* db = nullptr;
-    //std::wstring memberList = L"Members:\n";
 
     switch (message)
     {
@@ -184,7 +185,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 if (GetOpenFileName(&ofn)) {
                     // Convert TCHAR to std::string (UTF-8) for sqlite3_open
-                    std::string filePath = toUtf8(szFile);
+                    filePath = toUtf8(szFile);
 
                     char* errMsg = nullptr;
                     const char* createTableSQL =
@@ -260,8 +261,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 std::string town = toUtf8(city);
                 const char* sql = "INSERT INTO Members (surname, firstName, city) VALUES (?, ?, ?);";
 
-                sqlite3* db = nullptr;
-                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
+                if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
                    return 0;
                 }
@@ -326,8 +326,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 std::string town = toUtf8(city);
                 const char* sql = "DELETE FROM Members WHERE surname = ? AND firstName = ? AND city = ?;";
 
-                sqlite3* db = nullptr;
-                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
+                if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
                     return 0;
                 }
@@ -400,14 +399,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: Add any drawing code that uses hdc here...
+            int x = 20;
             int y = 10;
 			std::wstring rowStr;
+            
             for (int i = 0; i < 500 && !memberList[i].empty(); ++i) {
                 if (i < 9) rowStr = L"[00" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else if (i < 99) rowStr = L"[0" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else rowStr = L"[" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 
-                TextOutW(hdc, 20, y, rowStr.c_str(), (int)memberList[i].length() + 7);
+                if (i % 20 == 0 && i > 0) {
+                    x += 300;
+                    y = 10;
+                }
+				if (i % 40 == 0 && i > 0) {
+                    x = 20;
+                    y = 10;
+             
+                    CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                        610, 150, 200, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
+
+                  //  InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
+                }
+
+                TextOutW(hdc, x, y, rowStr.c_str(), (int)memberList[i].length() + 7);
                 y += 20; // Move down for next line
             }
             EndPaint(hWnd, &ps);
