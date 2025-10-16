@@ -626,7 +626,9 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
         return;
     }
     std::wstring line;
-    while (std::getline(file, line)) {
+    int i = 0;
+    for (; i < 500 && !memberList[i].empty(); ++i);
+    while (std::getline(file, line) && i < 500) {
         std::wstringstream ss(line);
         std::wstring surname, firstname, city;
         if (std::getline(ss, surname, L';') &&
@@ -643,7 +645,6 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
             std::string town = toUtf8(city.c_str());
             const char* sql = "INSERT INTO Members (surname, firstName, city) VALUES (?, ?, ?);";
             sqlite3_stmt* stmt = nullptr;
-			int i = static_cast<int>(memberList->size());
             if (sqlite3_open(filePath.c_str(), &db) == SQLITE_OK &&
                 sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
                 sqlite3_bind_text(stmt, 1, last.c_str(), -1, SQLITE_TRANSIENT);
@@ -651,7 +652,7 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
                 sqlite3_bind_text(stmt, 3, town.c_str(), -1, SQLITE_TRANSIENT);
                 sqlite3_step(stmt);
                 sqlite3_finalize(stmt);
-                memberList[i] = surname + L", " + firstname + L", " + city + L"\n";                i++;
+                memberList[i] = std::wstring(surname) + L", " + std::wstring(firstname) + L", " + std::wstring(city) + L"\n";
                 i++;
             }
         }
