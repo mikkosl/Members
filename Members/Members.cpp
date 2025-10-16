@@ -29,6 +29,8 @@
 #define IDC_REMOVE_BUTTON 206
 #define IDC_MORE_BUTTON 207
 #define IDC_BACK_BUTTON 208
+#define IDC_SEARCH_BUTTON 209
+#define IDC_SAVE_BUTTON 218
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -45,6 +47,12 @@ HWND hAddButton = NULL;
 HWND hRemoveButton = NULL;
 HWND hMoreButton = NULL;
 HWND hBackButton = NULL;
+HWND hSearchButton = NULL;
+HWND hSaveButton = NULL;
+HWND hSurname = NULL;
+HWND hFirstName = NULL;
+HWND hCity = NULL;
+HWND hRow = NULL;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -327,6 +335,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
 
                 ShowWindow(hRemoveButton, SW_HIDE);
+                ShowWindow(hSearchButton, SW_HIDE);
                 hAddButton = CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                     610, 140, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
             break;
@@ -463,6 +472,158 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
             }
             break; 
+            case ID_MEMBER_EDIT:
+            {
+                CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
+                    600, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
+                    600, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                    600, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
+                    600, 110, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
+
+                ShowWindow(hAddButton, SW_HIDE);
+                ShowWindow(hRemoveButton, SW_HIDE);
+
+                hSearchButton = CreateWindow(L"BUTTON", L"Search Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    610, 140, 200, 30, hWnd, (HMENU)IDC_SEARCH_BUTTON, NULL, NULL);
+
+            }
+            break;
+            case IDC_SEARCH_BUTTON:
+            {
+                wchar_t surname[100];
+                std::string last;
+                std::string first;
+                std::string town;
+                HWND hOld;
+                std::wstring surnameW, firstNameW, cityW, rowW;
+                const char* sql;
+
+                GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_ROW), row, 100);
+
+                if (row[0] == L'\0') {
+                    last = toUtf8(surname);
+                    sql = "SELECT surname, firstName, city FROM Members WHERE surname = ?;";
+                }
+                else {
+                    rowNumber = _wtoi(row);
+                    std::wstring wlast, wfirst, wtown;
+                    ParseMemberEntry(memberList[rowNumber - 1], wlast, wfirst, wtown);
+                    last = toUtf8(wlast.c_str());
+                    first = toUtf8(wfirst.c_str());
+                    town = toUtf8(wtown.c_str());
+                    sql = "SELECT surname, firstName, city FROM Members WHERE surname = ? AND firstname = ? AND city = ?;";
+                }
+
+                if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                    return 0;
+                }
+
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+
+                if (rc != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
+                    sqlite3_close(db);
+                    return 0;
+                }
+
+                if (row[0] == L'\0') {
+                    sqlite3_bind_text(stmt, 1, last.c_str(), -1, SQLITE_TRANSIENT);
+                }
+                else {
+                    sqlite3_bind_text(stmt, 1, last.c_str(), -1, SQLITE_TRANSIENT);
+                    sqlite3_bind_text(stmt, 2, first.c_str(), -1, SQLITE_TRANSIENT);
+                    sqlite3_bind_text(stmt, 3, town.c_str(), -1, SQLITE_TRANSIENT);
+                    rowW = std::to_wstring(rowNumber);
+                }
+
+                bool found = false;
+                while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+                    found = true;
+                    const char* surnameUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+                    surnameW = utf8ToWstring(surnameUtf8);
+                    const char* firstNameUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                    firstNameW = utf8ToWstring(firstNameUtf8);
+                    const char* cityUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                    cityW = utf8ToWstring(cityUtf8);
+                    // process row
+                }
+                if (!found) {
+                    MessageBoxW(NULL, L"No results found.", L"Debug", MB_OK);
+                }
+
+                if (row[0] == L'\0') {
+                    rowNumber = 0;
+                    while (rowNumber < 500 && !memberList[rowNumber].empty()) {
+                        std::wstring wlast, wfirst, wtown;
+                        ParseMemberEntry(memberList[rowNumber], wlast, wfirst, wtown);
+                        if (wlast == surnameW) {
+                            firstNameW = wfirst;
+                            cityW = wtown;
+                            break;
+                        }
+                        rowNumber++;
+                    }
+                    rowW = std::to_wstring(rowNumber + 1);
+                }
+                ShowWindow(hAddButton, SW_HIDE);
+                ShowWindow(hRemoveButton, SW_HIDE);
+                ShowWindow(hSearchButton, SW_HIDE);
+                hOld = GetDlgItem(hWnd, IDC_SURNAME);
+                if (hOld) DestroyWindow(hOld);
+                hOld = GetDlgItem(hWnd, IDC_FIRSTNAME);
+                if (hOld) DestroyWindow(hOld);
+                hOld = GetDlgItem(hWnd, IDC_CITY);
+                if (hOld) DestroyWindow(hOld);
+                hOld = GetDlgItem(hWnd, IDC_ROW);
+                if (hOld) DestroyWindow(hOld);
+
+                CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
+                    600, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                hSurname = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
+                    600, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                hFirstName = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                    600, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                hCity = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
+                    600, 110, 80, 20, hWnd, NULL, NULL, NULL);
+                hRow = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
+
+                    
+                hSaveButton = CreateWindow(L"BUTTON", L"Save Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    610, 140, 200, 30, hWnd, (HMENU)IDC_SAVE_BUTTON, NULL, NULL); 
+             
+                SetWindowTextW(hSurname, surnameW.c_str());
+                SetWindowTextW(hFirstName, firstNameW.c_str());
+                SetWindowTextW(hCity, cityW.c_str());
+                SetWindowTextW(hRow, rowW.c_str());
+                
+            }
+            break;
             case IDC_MORE_BUTTON:
             {
                 currentPage++;
