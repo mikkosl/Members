@@ -12,10 +12,11 @@
 #define IDC_FIRSTNAME 201
 #define IDC_SURNAME   202
 #define IDC_CITY      203
-#define IDC_ADD_BUTTON 204
-#define IDC_REMOVE_BUTTON 205
-#define IDC_MORE_BUTTON 206
-#define IDC_BACK_BUTTON 207
+#define IDC_ROW       204
+#define IDC_ADD_BUTTON 205
+#define IDC_REMOVE_BUTTON 206
+#define IDC_MORE_BUTTON 207
+#define IDC_BACK_BUTTON 208
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -28,6 +29,8 @@ sqlite3* db = nullptr;
 std::string filePath;
 int currentPage = 0;
 const int MEMBERS_PER_PAGE = 40;
+HWND hAddButton = NULL;
+HWND hRemoveButton = NULL;
 HWND hMoreButton = NULL;
 HWND hBackButton = NULL;
 
@@ -36,6 +39,8 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstring& first, std::wstring& town);
 
 std::string toUtf8(const wchar_t* wstr) {
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
@@ -172,7 +177,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
-
+            wchar_t row[100] = L"";
+            int rowNumber = 0;
             // Parse the menu selections:
             switch (wmId)
             {
@@ -251,8 +257,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
 
-                CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    610, 120, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
+                CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
+                    600, 110, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
+
+                ShowWindow(hRemoveButton, SW_HIDE);
+                hAddButton = CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    610, 140, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
             break;
             case IDC_ADD_BUTTON:
             {
@@ -291,6 +303,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     SetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_CITY), L"");
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_ROW), L"");
                 }
 
                 sqlite3_finalize(stmt);
@@ -315,20 +328,42 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
 
-                CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    610, 120, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
+                CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
+                    600, 110, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
+                
+                ShowWindow(hAddButton, SW_HIDE);
+                hRemoveButton = CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    610, 140, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
             }
             break;
             case IDC_REMOVE_BUTTON:
             {
                 wchar_t firstName[100], surname[100], city[100];
+                std::string last;
+                std::string first;
+                std::string town; 
+                
                 GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), firstName, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_CITY), city, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_ROW), row, 100);
 
-                std::string last = toUtf8(surname);
-                std::string first = toUtf8(firstName);
-                std::string town = toUtf8(city);
+                if (row[0]  == L'\0') {
+                    last = toUtf8(surname);
+                    first = toUtf8(firstName);
+                    town = toUtf8(city);
+                }
+                else {
+                    rowNumber = _wtoi(row);
+                    std::wstring wlast, wfirst, wtown;
+                    ParseMemberEntry(memberList[rowNumber - 1], wlast, wfirst, wtown);
+                    last = toUtf8(wlast.c_str());
+                    first = toUtf8(wfirst.c_str());
+                    town = toUtf8(wtown.c_str());
+                }
+                                 
                 const char* sql = "DELETE FROM Members WHERE surname = ? AND firstName = ? AND city = ?;";
 
                 if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
@@ -357,6 +392,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     SetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_CITY), L"");
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_ROW), L"");
                 }
 
                 sqlite3_finalize(stmt);
@@ -448,14 +484,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (!hMoreButton) {
                     hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                         600, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
-                    hBackButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                        700, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
                 } else {
                     ShowWindow(hMoreButton, SW_SHOW);
-                    ShowWindow(hBackButton, SW_SHOW);
                 }
             } else {
                 if (hMoreButton) ShowWindow(hMoreButton, SW_HIDE);
+            }
+
+            // Handle the Back button: hide on first 7 pages (currentPage < 7), show otherwise
+            if (!hBackButton) {
+                hBackButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    700, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
+            }
+            if (currentPage == 0) {
+                ShowWindow(hBackButton, SW_HIDE);
+            } else {
+                ShowWindow(hBackButton, SW_SHOW);
             }
 
             EndPaint(hWnd, &ps);
@@ -488,4 +532,22 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+// Helper function to parse last, first, and town from a memberList entry
+void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstring& first, std::wstring& town)
+{
+    // Format: "surname, firstName, city\n"
+    size_t pos1 = entry.find(L", ");
+    if (pos1 == std::wstring::npos) { last = first = town = L""; return; }
+    last = entry.substr(0, pos1);
+
+    size_t pos2 = entry.find(L", ", pos1 + 2);
+    if (pos2 == std::wstring::npos) { first = town = L""; return; }
+    first = entry.substr(pos1 + 2, pos2 - (pos1 + 2));
+
+    // Remove trailing newline if present
+    size_t end = entry.find_last_not_of(L"\r\n");
+    if (end == std::wstring::npos || pos2 + 2 > end) { town = L""; return; }
+    town = entry.substr(pos2 + 2, end - (pos2 + 2) + 1);
 }
