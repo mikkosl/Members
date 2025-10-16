@@ -7,6 +7,18 @@
 #include <locale>
 #include <vector>
 #include <commdlg.h> // Add this at the top of your file
+#include <fstream>
+#include <sstream>
+#include <Windows.h>
+#include <sqlite3.h>
+#include <iostream>
+#include <string>
+#include <cwchar>
+#include <cstdlib>
+#include <stdexcept>
+#include <cstdio>
+#include <memory>
+#include <array>
 
 #define MAX_LOADSTRING 100
 #define IDC_FIRSTNAME 201
@@ -41,6 +53,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstring& first, std::wstring& town);
+void ImportMembersFromCSV(const std::wstring& csvPath);
 
 std::string toUtf8(const wchar_t* wstr) {
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
@@ -50,7 +63,6 @@ std::string toUtf8(const wchar_t* wstr) {
 }
 
 // Converts UTF-8 encoded const char* to std::wstring without <codecvt>
-#include <Windows.h>
 
 std::wstring utf8ToWstring(const char* utf8Str) {
     if (!utf8Str) return L"";
@@ -182,6 +194,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
+            case ID_FILE_CREATE:
+            {
+                OPENFILENAME ofn = { 0 };
+                TCHAR szFile[MAX_PATH] = { 0 };
+                ofn.lStructSize = sizeof(ofn);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = szFile;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrFilter = L"Database Files (*.db)\0*.db\0All Files (*.*)\0*.*\0";
+                ofn.nFilterIndex = 1;
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+                if (GetSaveFileName(&ofn)) {
+                    // Convert TCHAR to std::string (UTF-8) for sqlite3_open
+                    filePath = toUtf8(szFile);
+                    char* errMsg = nullptr;
+                    const char* createTableSQL =
+                        "CREATE TABLE IF NOT EXISTS Members ("
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                        "surname TEXT NOT NULL, "
+                        "firstName TEXT NOT NULL, "
+                        "city TEXT);";
+                    if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
+                        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database: ", MB_OK | MB_ICONERROR);
+                        return 1;
+                    }
+                    if (sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+                        MessageBox(nullptr, utf8ToWstring(errMsg).c_str(), L"Table creation failed: ", MB_OK | MB_ICONERROR);
+                        sqlite3_free(errMsg);
+                        sqlite3_close(db);                    // Close the database
+                    }
+                    sqlite3_close(db);                    // Close the database
+                }
+			}
+			break;
             case ID_FILE_OPEN:
             {
 			    OPENFILENAME ofn = { 0 };
@@ -240,6 +286,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
                 }
             }
+            break;
+            case ID_FILE_IMPORT:
+                ImportMembersFromCSV(L"Members.csv");
+                InvalidateRect(GetActiveWindow(), NULL, TRUE);
             break;
             case ID_MEMBER_ADD:
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
@@ -461,7 +511,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             int endIdx = startIdx + MEMBERS_PER_PAGE;
             if (endIdx > totalMembers) endIdx = totalMembers;
 
-            for (int i = startIdx; i < endIdx && !memberList[i].empty(); ++i) {
+            // Corrected bounds-checked version
+            for (int i = startIdx; i < endIdx && i >= 0 && i < 500 && !memberList[i].empty(); ++i) {
                 if (i < 9) rowStr = L"[00" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else if (i < 99) rowStr = L"[0" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else rowStr = L"[" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
@@ -550,4 +601,46 @@ void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstrin
     size_t end = entry.find_last_not_of(L"\r\n");
     if (end == std::wstring::npos || pos2 + 2 > end) { town = L""; return; }
     town = entry.substr(pos2 + 2, end - (pos2 + 2) + 1);
+}
+
+// Example function to import members from a CSV file
+void ImportMembersFromCSV(const std::wstring& csvPath) {
+
+    std::wifstream file(csvPath);
+    if (!file.is_open()) {
+        MessageBox(nullptr, L"Failed to open CSV file.", L"Import Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+    std::wstring line;
+    while (std::getline(file, line)) {
+        std::wstringstream ss(line);
+        std::wstring surname, firstname, city;
+        if (std::getline(ss, surname, L';') &&
+            std::getline(ss, firstname, L';') &&
+            std::getline(ss, city, L';')) {
+            // Remove possible whitespace
+            surname.erase(0, surname.find_first_not_of(L" \t"));
+            firstname.erase(0, firstname.find_first_not_of(L" \t"));
+            city.erase(0, city.find_first_not_of(L" \t"));
+
+            // Insert into database (reuse your existing DB insert logic)
+            std::string last = toUtf8(surname.c_str());
+            std::string first = toUtf8(firstname.c_str());
+            std::string town = toUtf8(city.c_str());
+            const char* sql = "INSERT INTO Members (surname, firstName, city) VALUES (?, ?, ?);";
+            sqlite3_stmt* stmt = nullptr;
+			int i = static_cast<int>(memberList->size());
+            if (sqlite3_open(filePath.c_str(), &db) == SQLITE_OK &&
+                sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+                sqlite3_bind_text(stmt, 1, last.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 2, first.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 3, town.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_step(stmt);
+                sqlite3_finalize(stmt);
+                memberList[i] = surname + L", " + firstname + L", " + city + L"\n";                i++;
+                i++;
+            }
+        }
+    }
+    file.close();
 }
