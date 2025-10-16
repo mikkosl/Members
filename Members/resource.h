@@ -14,6 +14,7 @@
 #define IDR_MAINFRAME                   128
 #define ID_MEMBER_ADD                   32772
 #define ID_MEMBER_REMOVE                32773
+#define ID_FILE_CREATE					32779
 #define ID_FILE_OPEN					32774
 #define ID_FILE_IMPORT                  32775
 #define ID_FILE_EXPORT                  32776
