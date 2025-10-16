@@ -288,8 +288,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
             case ID_FILE_IMPORT:
-                ImportMembersFromCSV(L"Members.csv");
-                InvalidateRect(GetActiveWindow(), NULL, TRUE);
+            {
+                OPENFILENAME ofn = { 0 };
+                TCHAR szFile[MAX_PATH] = { 0 };
+                ofn.lStructSize = sizeof(ofn);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = szFile;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrFilter = L"Database Files (*.csv)\0*.csv\0All Files (*.*)\0*.*\0";
+                ofn.nFilterIndex = 1;
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+                if (GetOpenFileName(&ofn)) {
+                    ImportMembersFromCSV(szFile);
+                    InvalidateRect(GetActiveWindow(), NULL, TRUE);
+                }
+            }
             break;
             case ID_MEMBER_ADD:
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
