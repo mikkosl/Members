@@ -621,7 +621,55 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 SetWindowTextW(hFirstName, firstNameW.c_str());
                 SetWindowTextW(hCity, cityW.c_str());
                 SetWindowTextW(hRow, rowW.c_str());
-                
+            }
+            break;
+            case IDC_SAVE_BUTTON:
+            {
+                wchar_t firstName[100], surname[100], city[100], row[100];
+                int rowNumber = 0;
+                GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), firstName, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_CITY), city, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_ROW), row, 100);
+                rowNumber = _wtoi(row);
+                std::wstring wlast, wfirst, wtown;
+                ParseMemberEntry(memberList[rowNumber - 1], wlast, wfirst, wtown);
+                std::string oldLast = toUtf8(wlast.c_str());
+                std::string oldFirst = toUtf8(wfirst.c_str());
+                std::string oldTown = toUtf8(wtown.c_str());
+                std::string newLast = toUtf8(surname);
+                std::string newFirst = toUtf8(firstName);
+                std::string newTown = toUtf8(city);
+                const char* sql = "UPDATE Members SET surname = ?, firstName = ?, city = ? WHERE surname = ? AND firstName = ? AND city = ?;";
+                if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                    return 0;
+                }
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+                if (rc != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
+                    sqlite3_close(db);
+                    return 0;
+                }
+                sqlite3_bind_text(stmt, 1, newLast.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 2, newFirst.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 3, newTown.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 4, oldLast.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 5, oldFirst.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt, 6, oldTown.c_str(), -1, SQLITE_TRANSIENT);
+
+                rc = sqlite3_step(stmt);
+                if (rc != SQLITE_DONE) {
+                    std::wstring errMsgW = utf8ToWstring(sqlite3_errmsg(db));
+                    MessageBox(hWnd, errMsgW.c_str(), L"Update failed: ", MB_OK | MB_ICONINFORMATION);
+                }
+                SetWindowTextW(hSurname, L"");
+                SetWindowTextW(hFirstName, L"");
+                SetWindowTextW(hCity, L"");
+                SetWindowTextW(hRow, L"");
+                memberList[rowNumber-1] = utf8ToWstring(newLast.c_str()) + L", " + utf8ToWstring(newFirst.c_str()) + L", " + utf8ToWstring(newTown.c_str()) + L"\n";
+                sqlite3_finalize(stmt);
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the updated rows
             }
             break;
             case IDC_MORE_BUTTON:
