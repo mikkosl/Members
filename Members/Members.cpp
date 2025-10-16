@@ -23,14 +23,14 @@
 #define MAX_LOADSTRING 100
 #define IDC_FIRSTNAME 201
 #define IDC_SURNAME   202
-#define IDC_CITY      203
+#define IDC_MUNICIPALITY      203
 #define IDC_ROW       204
 #define IDC_ADD_BUTTON 205
 #define IDC_REMOVE_BUTTON 206
 #define IDC_MORE_BUTTON 207
 #define IDC_BACK_BUTTON 208
 #define IDC_SEARCH_BUTTON 209
-#define IDC_SAVE_BUTTON 218
+#define IDC_UPDATE_BUTTON 218
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -48,10 +48,10 @@ HWND hRemoveButton = NULL;
 HWND hMoreButton = NULL;
 HWND hBackButton = NULL;
 HWND hSearchButton = NULL;
-HWND hSaveButton = NULL;
+HWND hUpdateButton = NULL;
 HWND hSurname = NULL;
 HWND hFirstName = NULL;
-HWND hCity = NULL;
+HWND hMunicipality = NULL;
 HWND hRow = NULL;
 
 // Forward declarations of functions included in this code module:
@@ -222,7 +222,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                         "surname TEXT NOT NULL, "
                         "firstName TEXT NOT NULL, "
-                        "city TEXT);";
+                        "municipality TEXT);";
                     if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                         MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database: ", MB_OK | MB_ICONERROR);
                         return 1;
@@ -258,7 +258,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                         "surname TEXT NOT NULL, "
                         "firstName TEXT NOT NULL, "
-                        "city TEXT);";
+                        "municipality TEXT);";
 
                     if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                         MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database: ", MB_OK | MB_ICONERROR);
@@ -271,7 +271,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         sqlite3_close(db);                    // Close the database
                     }
 
-                    const char* sql = "SELECT surname, firstName, city FROM Members;";
+                    const char* sql = "SELECT surname, firstName, municipality FROM Members;";
                     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
                     if (rc != SQLITE_OK) {
                         MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
@@ -285,8 +285,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
                         const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
                         const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-                        const char* city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-                        memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(city) + L"\n";
+                        const char* municipality = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                        memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(municipality) + L"\n";
                         i++;
                     }
                     if (rc != SQLITE_DONE) MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to retrieve data: ", MB_OK | MB_ICONERROR);
@@ -320,11 +320,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_FIRSTNAME);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_CITY);
+                hOld = GetDlgItem(hWnd, IDC_MUNICIPALITY);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ROW);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_SAVE_BUTTON);
+                hOld = GetDlgItem(hWnd, IDC_UPDATE_BUTTON);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_REMOVE_BUTTON);
                 if (hOld) DestroyWindow(hOld);
@@ -341,10 +341,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
-                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
                     600, 80, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
                     600, 110, 80, 20, hWnd, NULL, NULL, NULL);
@@ -356,15 +356,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
             case IDC_ADD_BUTTON:
             {
-                wchar_t firstName[100], surname[100], city[100];
+                wchar_t firstName[100], surname[100], municipality[100];
                 GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), firstName, 100);
-                GetWindowTextW(GetDlgItem(hWnd, IDC_CITY), city, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_MUNICIPALITY), municipality, 100);
 
                 std::string last = toUtf8(surname);
                 std::string first = toUtf8(firstName);
-                std::string town = toUtf8(city);
-                const char* sql = "INSERT INTO Members (surname, firstName, city) VALUES (?, ?, ?);";
+                std::string town = toUtf8(municipality);
+                const char* sql = "INSERT INTO Members (surname, firstName, municipality) VALUES (?, ?, ?);";
 
                 if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
@@ -390,7 +390,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // Clear the input fields after successful insert
                     SetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), L"");
-                    SetWindowTextW(GetDlgItem(hWnd, IDC_CITY), L"");
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_MUNICIPALITY), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_ROW), L"");
                 }
 
@@ -407,11 +407,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_FIRSTNAME);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_CITY);
+                hOld = GetDlgItem(hWnd, IDC_MUNICIPALITY);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ROW);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_SAVE_BUTTON);
+                hOld = GetDlgItem(hWnd, IDC_UPDATE_BUTTON);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ADD_BUTTON);
                 if (hOld) DestroyWindow(hOld);
@@ -428,10 +428,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
-                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
                     600, 80, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
                     600, 110, 80, 20, hWnd, NULL, NULL, NULL);
@@ -444,20 +444,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
             case IDC_REMOVE_BUTTON:
             {
-                wchar_t firstName[100], surname[100], city[100];
+                wchar_t firstName[100], surname[100], municipality[100];
                 std::string last;
                 std::string first;
                 std::string town; 
                 
                 GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), firstName, 100);
-                GetWindowTextW(GetDlgItem(hWnd, IDC_CITY), city, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_MUNICIPALITY), municipality, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_ROW), row, 100);
 
                 if (row[0]  == L'\0') {
                     last = toUtf8(surname);
                     first = toUtf8(firstName);
-                    town = toUtf8(city);
+                    town = toUtf8(municipality);
                 }
                 else {
                     rowNumber = _wtoi(row);
@@ -468,7 +468,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     town = toUtf8(wtown.c_str());
                 }
                                  
-                const char* sql = "DELETE FROM Members WHERE surname = ? AND firstName = ? AND city = ?;";
+                const char* sql = "DELETE FROM Members WHERE surname = ? AND firstName = ? AND municipality = ?;";
 
                 if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
@@ -495,7 +495,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // Clear the input fields after successful delete
                     SetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), L"");
-                    SetWindowTextW(GetDlgItem(hWnd, IDC_CITY), L"");
+                    SetWindowTextW(GetDlgItem(hWnd, IDC_MUNICIPALITY), L"");
                     SetWindowTextW(GetDlgItem(hWnd, IDC_ROW), L"");
                 }
 
@@ -503,7 +503,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
             }
             break; 
-            case ID_MEMBER_EDIT:
+            case ID_MEMBER_UPDATE:
             {
                 HWND hOld;
 
@@ -511,7 +511,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_FIRSTNAME);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_CITY);
+                hOld = GetDlgItem(hWnd, IDC_MUNICIPALITY);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ROW);
                 if (hOld) DestroyWindow(hOld);
@@ -530,10 +530,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
-                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
                     600, 80, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
                     600, 110, 80, 20, hWnd, NULL, NULL, NULL);
@@ -552,7 +552,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 std::string first;
                 std::string town;
                 HWND hOld;
-                std::wstring surnameW, firstNameW, cityW, rowW;
+                std::wstring surnameW, firstNameW, municipalityW, rowW;
                 const char* sql;
 
                 GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
@@ -560,7 +560,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 if (row[0] == L'\0') {
                     last = toUtf8(surname);
-                    sql = "SELECT surname, firstName, city FROM Members WHERE surname = ?;";
+                    sql = "SELECT surname, firstName, municipality FROM Members WHERE surname = ?;";
 					if (surname[0] == L'\0') {
                         MessageBoxW(NULL, L"Please enter a surname or row number.", L"Debug", MB_OK);
                         return 0;
@@ -573,7 +573,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     last = toUtf8(wlast.c_str());
                     first = toUtf8(wfirst.c_str());
                     town = toUtf8(wtown.c_str());
-                    sql = "SELECT surname, firstName, city FROM Members WHERE surname = ? AND firstname = ? AND city = ?;";
+                    sql = "SELECT surname, firstName, municipality FROM Members WHERE surname = ? AND firstname = ? AND municipality = ?;";
                 }
 
                 if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
@@ -606,8 +606,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     surnameW = utf8ToWstring(surnameUtf8);
                     const char* firstNameUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
                     firstNameW = utf8ToWstring(firstNameUtf8);
-                    const char* cityUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-                    cityW = utf8ToWstring(cityUtf8);
+                    const char* municipalityUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                    municipalityW = utf8ToWstring(municipalityUtf8);
                     // process row
                 }
                 if (!found) {
@@ -622,7 +622,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         ParseMemberEntry(memberList[rowNumber], wlast, wfirst, wtown);
                         if (wlast == surnameW) {
                             firstNameW = wfirst;
-                            cityW = wtown;
+                            municipalityW = wtown;
                             break;
                         }
                         rowNumber++;
@@ -633,7 +633,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_FIRSTNAME);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_CITY);
+                hOld = GetDlgItem(hWnd, IDC_MUNICIPALITY);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ROW);
                 if (hOld) DestroyWindow(hOld);
@@ -650,34 +650,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 hFirstName = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
-                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
                     600, 80, 80, 20, hWnd, NULL, NULL, NULL);
-                hCity = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                hMunicipality = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
                     600, 110, 80, 20, hWnd, NULL, NULL, NULL);
                 hRow = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
                     
-                hSaveButton = CreateWindow(L"BUTTON", L"Save Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    610, 140, 200, 30, hWnd, (HMENU)IDC_SAVE_BUTTON, NULL, NULL); 
+                hUpdateButton = CreateWindow(L"BUTTON", L"Update Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    610, 140, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL); 
              
                 SetWindowTextW(hSurname, surnameW.c_str());
                 SetWindowTextW(hFirstName, firstNameW.c_str());
-                SetWindowTextW(hCity, cityW.c_str());
+                SetWindowTextW(hMunicipality, municipalityW.c_str());
                 SetWindowTextW(hRow, rowW.c_str());
             }
             break;
-            case IDC_SAVE_BUTTON:
+            case IDC_UPDATE_BUTTON:
             {
-                wchar_t firstName[100], surname[100], city[100], row[100];
+                wchar_t firstName[100], surname[100], municipality[100], row[100];
                 int rowNumber = 0;
                 HWND hOld;
 
                 GetWindowTextW(GetDlgItem(hWnd, IDC_SURNAME), surname, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_FIRSTNAME), firstName, 100);
-                GetWindowTextW(GetDlgItem(hWnd, IDC_CITY), city, 100);
+                GetWindowTextW(GetDlgItem(hWnd, IDC_MUNICIPALITY), municipality, 100);
                 GetWindowTextW(GetDlgItem(hWnd, IDC_ROW), row, 100);
                 
                 rowNumber = _wtoi(row);
@@ -688,8 +688,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 std::string oldTown = toUtf8(wtown.c_str());
                 std::string newLast = toUtf8(surname);
                 std::string newFirst = toUtf8(firstName);
-                std::string newTown = toUtf8(city);
-                const char* sql = "UPDATE Members SET surname = ?, firstName = ?, city = ? WHERE surname = ? AND firstName = ? AND city = ?;";
+                std::string newTown = toUtf8(municipality);
+                const char* sql = "UPDATE Members SET surname = ?, firstName = ?, municipality = ? WHERE surname = ? AND firstName = ? AND municipality = ?;";
                 if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
                     return 0;
@@ -720,11 +720,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_FIRSTNAME);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_CITY);
+                hOld = GetDlgItem(hWnd, IDC_MUNICIPALITY);
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ROW);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_SAVE_BUTTON);
+                hOld = GetDlgItem(hWnd, IDC_UPDATE_BUTTON);
                 if (hOld) DestroyWindow(hOld);
 
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
@@ -737,10 +737,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
-                CreateWindow(L"STATIC", L"City:", WS_VISIBLE | WS_CHILD,
+                CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
                     600, 80, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
-                    710, 80, 200, 20, hWnd, (HMENU)IDC_CITY, NULL, NULL);
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
                     600, 110, 80, 20, hWnd, NULL, NULL, NULL);
@@ -776,7 +776,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
                     return 0;
                 }
-                const char* sql = "SELECT surname, firstName, city FROM Members;";
+                const char* sql = "SELECT surname, firstName, municipality FROM Members;";
                 rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
                 if (rc != SQLITE_OK) {
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
@@ -790,8 +790,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
                     const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
                     const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-                    const char* city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-                    memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(city) + L"\n";
+                    const char* municipality = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                    memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(municipality) + L"\n";
                     i++;
                 }
                     return DefWindowProc(hWnd, message, wParam, lParam);
@@ -890,7 +890,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 // Helper function to parse last, first, and town from a memberList entry
 void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstring& first, std::wstring& town)
 {
-    // Format: "surname, firstName, city\n"
+    // Format: "surname, firstName, municipality\n"
     size_t pos1 = entry.find(L", ");
     if (pos1 == std::wstring::npos) { last = first = town = L""; return; }
     last = entry.substr(0, pos1);
@@ -918,20 +918,20 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
     for (; i < 500 && !memberList[i].empty(); ++i);
     while (std::getline(file, line) && i < 500) {
         std::wstringstream ss(line);
-        std::wstring surname, firstname, city;
+        std::wstring surname, firstname, municipality;
         if (std::getline(ss, surname, L';') &&
             std::getline(ss, firstname, L';') &&
-            std::getline(ss, city, L';')) {
+            std::getline(ss, municipality, L';')) {
             // Remove possible whitespace
             surname.erase(0, surname.find_first_not_of(L" \t"));
             firstname.erase(0, firstname.find_first_not_of(L" \t"));
-            city.erase(0, city.find_first_not_of(L" \t"));
+            municipality.erase(0, municipality.find_first_not_of(L" \t"));
 
             // Insert into database (reuse your existing DB insert logic)
             std::string last = toUtf8(surname.c_str());
             std::string first = toUtf8(firstname.c_str());
-            std::string town = toUtf8(city.c_str());
-            const char* sql = "INSERT INTO Members (surname, firstName, city) VALUES (?, ?, ?);";
+            std::string town = toUtf8(municipality.c_str());
+            const char* sql = "INSERT INTO Members (surname, firstName, municipality) VALUES (?, ?, ?);";
             sqlite3_stmt* stmt = nullptr;
             if (sqlite3_open(filePath.c_str(), &db) == SQLITE_OK &&
                 sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
@@ -940,7 +940,7 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
                 sqlite3_bind_text(stmt, 3, town.c_str(), -1, SQLITE_TRANSIENT);
                 sqlite3_step(stmt);
                 sqlite3_finalize(stmt);
-                memberList[i] = std::wstring(surname) + L", " + std::wstring(firstname) + L", " + std::wstring(city) + L"\n";
+                memberList[i] = std::wstring(surname) + L", " + std::wstring(firstname) + L", " + std::wstring(municipality) + L"\n";
                 i++;
             }
         }
