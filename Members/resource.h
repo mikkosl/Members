@@ -19,7 +19,7 @@
 #define ID_FILE_IMPORT                  32775
 #define ID_FILE_EXPORT                  32776
 #define ID_MEMBER_DELETAALL             32777
-#define ID_MEMBER_EDIT                  32778
+#define ID_MEMBER_UPDATE                32778
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
