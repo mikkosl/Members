@@ -64,6 +64,7 @@ INT_PTR CALLBACK    GettingStartedDlgProc(HWND hDlg, UINT message, WPARAM wParam
 
 void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstring& first, std::wstring& town);
 void ImportMembersFromCSV(const std::wstring& csvPath);
+void ExportMembersToCSV(const std::wstring& csvPath);
 void LoadMembers(int page);
 
 std::string toUtf8(const wchar_t* wstr) {
@@ -316,6 +317,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     ImportMembersFromCSV(szFile);
                     LoadMembers(currentPage);
                     InvalidateRect(GetActiveWindow(), NULL, TRUE);
+                }
+            }
+            break;
+            case ID_FILE_EXPORT:
+            {
+                OPENFILENAME ofn = { 0 };
+                TCHAR szFile[MAX_PATH] = { 0 };
+                ofn.lStructSize = sizeof(ofn);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = szFile;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrFilter = L"Database Files (*.csv)\0*.csv\0All Files (*.*)\0*.*\0";
+                ofn.nFilterIndex = 1;
+                ofn.Flags = OFN_PATHMUSTEXIST;
+
+                if (GetSaveFileName(&ofn)) {
+                    ExportMembersToCSV(szFile);
                 }
             }
             break;
@@ -997,6 +1015,80 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
         }
     }
     file.close();
+}
+
+void ExportMembersToCSV(const std::wstring& csvPath) {
+    if (filePath.empty()) {
+        MessageBoxW(nullptr, L"No database is open. Open a .db file first.", L"Export Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    // Convert wide path to UTF-8 for std::ofstream (consistent with other code)
+    std::string csvPathUtf8 = toUtf8(csvPath.c_str());
+
+    std::ofstream ofs(csvPathUtf8, std::ios::binary);
+    if (!ofs.is_open()) {
+        MessageBoxW(nullptr, L"Failed to open target CSV file for writing.", L"Export Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    // Optional: write UTF-8 BOM so Excel recognizes UTF-8
+    const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+    ofs.write(reinterpret_cast<const char*>(bom), sizeof(bom));
+
+    sqlite3* localDb = nullptr;
+    sqlite3_stmt* localStmt = nullptr;
+
+    if (sqlite3_open(filePath.c_str(), &localDb) != SQLITE_OK) {
+        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(localDb)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+        if (localDb) sqlite3_close(localDb);
+        ofs.close();
+        return;
+    }
+
+    const char* sql = "SELECT surname, firstName, municipality FROM Members ORDER BY surname COLLATE NOCASE, firstName COLLATE NOCASE, municipality COLLATE NOCASE;";
+    if (sqlite3_prepare_v2(localDb, sql, -1, &localStmt, nullptr) != SQLITE_OK) {
+        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(localDb)).c_str(), L"Failed to prepare statement", MB_OK | MB_ICONERROR);
+        sqlite3_close(localDb);
+        ofs.close();
+        return;
+    }
+
+    auto escapeField = [](const std::string& in) -> std::string {
+        // CSV rules: if field contains semicolon, quote or newline, wrap in double quotes and double internal quotes.
+        bool needsQuotes = false;
+        for (char c : in) {
+            if (c == ';' || c == '"' || c == '\n' || c == '\r') { needsQuotes = true; break; }
+        }
+        if (!needsQuotes) return in;
+        std::string out;
+        out.push_back('"');
+        for (char c : in) {
+            if (c == '"') out.append("\"\""); else out.push_back(c);
+        }
+        out.push_back('"');
+        return out;
+    };
+
+    int exported = 0;
+    while (sqlite3_step(localStmt) == SQLITE_ROW) {
+        const unsigned char* s0 = sqlite3_column_text(localStmt, 0);
+        const unsigned char* s1 = sqlite3_column_text(localStmt, 1);
+        const unsigned char* s2 = sqlite3_column_text(localStmt, 2);
+        std::string surname = s0 ? reinterpret_cast<const char*>(s0) : std::string();
+        std::string firstname = s1 ? reinterpret_cast<const char*>(s1) : std::string();
+        std::string municipality = s2 ? reinterpret_cast<const char*>(s2) : std::string();
+
+        ofs << escapeField(surname) << ';' << escapeField(firstname) << ';' << escapeField(municipality) << '\n';
+        ++exported;
+    }
+
+    sqlite3_finalize(localStmt);
+    sqlite3_close(localDb);
+    ofs.close();
+
+    std::wstring msg = L"Exported " + std::to_wstring(exported) + L" members to:\n" + csvPath;
+    MessageBoxW(nullptr, msg.c_str(), L"Export Complete", MB_OK | MB_ICONINFORMATION);
 }
 
 void LoadMembers(int page) {
