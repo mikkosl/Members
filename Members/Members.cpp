@@ -39,7 +39,6 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 std::wstring memberList[500];
 int rc;
 sqlite3_stmt* stmt = nullptr;
-sqlite3* db = nullptr;
 std::string filePath;
 int currentPage = 0;
 const int MEMBERS_PER_PAGE = 40;
@@ -53,6 +52,8 @@ HWND hSurname = NULL;
 HWND hFirstName = NULL;
 HWND hMunicipality = NULL;
 HWND hRow = NULL;
+sqlite3* db = nullptr; // Add a global variable for the database connection
+int totalMembers = 0;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -62,6 +63,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void ParseMemberEntry(const std::wstring& entry, std::wstring& last, std::wstring& first, std::wstring& town);
 void ImportMembersFromCSV(const std::wstring& csvPath);
+void LoadMembers(int page);
 
 std::string toUtf8(const wchar_t* wstr) {
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
@@ -117,7 +119,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
     
-    sqlite3_close(db);
+    if (db) {
+        sqlite3_close(db);
+    }
     return (int) msg.wParam;
 }
 
@@ -190,12 +194,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     std::wstring last, first, town;
-    sqlite3* db = nullptr;
 
     switch (message)
     {
     case WM_COMMAND:
-        {
+    {
             int wmId = LOWORD(wParam);
             wchar_t row[100] = L"";
             int rowNumber = 0;
@@ -291,6 +294,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                     if (rc != SQLITE_DONE) MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to retrieve data: ", MB_OK | MB_ICONERROR);
                     sqlite3_finalize(stmt);
+                    LoadMembers(currentPage);
                     InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
                 }
             }
@@ -309,6 +313,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 if (GetOpenFileName(&ofn)) {
                     ImportMembersFromCSV(szFile);
+                    LoadMembers(currentPage);
                     InvalidateRect(GetActiveWindow(), NULL, TRUE);
                 }
             }
@@ -395,6 +400,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
 
                 sqlite3_finalize(stmt);
+                LoadMembers(currentPage);
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display new rows
                 return 0;
             }
@@ -500,6 +506,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
 
                 sqlite3_finalize(stmt);
+                LoadMembers(currentPage);
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
             }
             break; 
@@ -706,14 +713,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 sqlite3_bind_text(stmt, 4, oldLast.c_str(), -1, SQLITE_TRANSIENT);
                 sqlite3_bind_text(stmt, 5, oldFirst.c_str(), -1, SQLITE_TRANSIENT);
                 sqlite3_bind_text(stmt, 6, oldTown.c_str(), -1, SQLITE_TRANSIENT);
-
+                
                 rc = sqlite3_step(stmt);
                 if (rc != SQLITE_DONE) {
                     std::wstring errMsgW = utf8ToWstring(sqlite3_errmsg(db));
                     MessageBox(hWnd, errMsgW.c_str(), L"Update failed: ", MB_OK | MB_ICONINFORMATION);
                 }
+                else {
+                    // Optionally check how many rows were changed:
+                    int changes = sqlite3_changes(db);
+                    if (changes == 0) {
+                        MessageBoxW(hWnd, L"No rows were updated (original values not found).", L"Update", MB_OK);
+                    }
+                }
                 memberList[rowNumber-1] = utf8ToWstring(newLast.c_str()) + L", " + utf8ToWstring(newFirst.c_str()) + L", " + utf8ToWstring(newTown.c_str()) + L"\n";
+                
                 sqlite3_finalize(stmt);
+
+                LoadMembers(currentPage);
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the updated rows
                 
                 hOld = GetDlgItem(hWnd, IDC_SURNAME);
@@ -749,17 +766,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 hSearchButton = CreateWindow(L"BUTTON", L"Search Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                     610, 140, 200, 30, hWnd, (HMENU)IDC_SEARCH_BUTTON, NULL, NULL);
+            
             }
             break;
             case IDC_MORE_BUTTON:
             {
                 currentPage++;
+                LoadMembers(currentPage);
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the next page
             }
 			break;
             case IDC_BACK_BUTTON:
             {
                 if (currentPage > 0) currentPage--;
+                LoadMembers(currentPage);
                 InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the previous page
 			}
 			break;
@@ -770,34 +790,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
             case IDM_EXIT:
                 DestroyWindow(hWnd);
-                break;
+            break;
             default:
-                if (sqlite3_open("Members.db", &db) != SQLITE_OK) {
-                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
-                    return 0;
-                }
-                const char* sql = "SELECT surname, firstName, municipality FROM Members;";
-                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-                if (rc != SQLITE_OK) {
-                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to prepare statement: ", MB_OK | MB_ICONERROR);
-                    sqlite3_close(db);
-                    return 0;
-                }
-                int i = 0;
-                for (int j = 0; j < 500; ++j) {
-                    memberList[j].clear();
-                }
-                while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-                    const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-                    const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-                    const char* municipality = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-                    memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(municipality) + L"\n";
-                    i++;
-                }
-                    return DefWindowProc(hWnd, message, wParam, lParam);
+				return DefWindowProc(hWnd, message, wParam, lParam);
             }
-        }
-        break;
+    }
+    break;
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
@@ -806,9 +804,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             int x = 20;
             int y = 10;
 			std::wstring rowStr;
-            
-            int totalMembers = 0;
-            for (int i = 0; i < 500 && !memberList[i].empty(); ++i) ++totalMembers;
+
             int startIdx = currentPage * MEMBERS_PER_PAGE;
             int endIdx = startIdx + MEMBERS_PER_PAGE;
             if (endIdx > totalMembers) endIdx = totalMembers;
@@ -818,7 +814,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (i < 9) rowStr = L"[00" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else if (i < 99) rowStr = L"[0" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else rowStr = L"[" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
-                
+
                 if (i % 20 == 0 && i > 0) {
                     x += 300;
                     y = 10;
@@ -831,7 +827,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 TextOutW(hdc, x, y, rowStr.c_str(), (int)memberList[i].length() + 7);
                 y += 20; // Move down for next line
             }
-
             // After drawing, handle the More button:
             if (endIdx < totalMembers) {
                 if (!hMoreButton) {
@@ -946,4 +941,61 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
         }
     }
     file.close();
+}
+
+void LoadMembers(int page) {
+    // clear existing
+    for (int j = 0; j < 500; ++j) memberList[j].clear();
+    totalMembers = 0;
+    if (filePath.empty()) return;
+
+    sqlite3* localDb = nullptr;
+    sqlite3_stmt* localStmt = nullptr;
+    sqlite3_stmt* countStmt = nullptr;
+
+    if (sqlite3_open(filePath.c_str(), &localDb) != SQLITE_OK) {
+        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(localDb)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+        if (localDb) sqlite3_close(localDb);
+        return;
+    }
+
+    // Get total number of members
+    const char* countSql = "SELECT COUNT(*) FROM Members;";
+    if (sqlite3_prepare_v2(localDb, countSql, -1, &countStmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(countStmt) == SQLITE_ROW) {
+            totalMembers = sqlite3_column_int(countStmt, 0);
+        }
+        sqlite3_finalize(countStmt);
+    } else {
+        // If count fails, keep totalMembers as 0 (or you may handle the error)
+        sqlite3_finalize(countStmt);
+    }
+
+    // Alphabetical order, case-insensitive.
+    const char* sql =
+        "SELECT surname, firstName, municipality "
+        "FROM Members "
+        "ORDER BY surname COLLATE NOCASE, firstName COLLATE NOCASE, municipality COLLATE NOCASE "
+        "LIMIT ? OFFSET ?;";
+
+    if (sqlite3_prepare_v2(localDb, sql, -1, &localStmt, nullptr) != SQLITE_OK) {
+        MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(localDb)).c_str(), L"Failed to prepare statement", MB_OK | MB_ICONERROR);
+        sqlite3_close(localDb);
+        return;
+    }
+
+    sqlite3_bind_int(localStmt, 1, MEMBERS_PER_PAGE);
+    sqlite3_bind_int(localStmt, 2, page * MEMBERS_PER_PAGE);
+
+    int i = page * MEMBERS_PER_PAGE;
+    while (sqlite3_step(localStmt) == SQLITE_ROW && i < 500) {
+        const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 0));
+        const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 1));
+        const char* municipality = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 2));
+        memberList[i] = utf8ToWstring(surname) + L", " + utf8ToWstring(firstName) + L", " + utf8ToWstring(municipality) + L"\n";
+        ++i;
+    }
+
+    sqlite3_finalize(localStmt);
+    sqlite3_close(localDb);
 }
