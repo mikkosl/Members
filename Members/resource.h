@@ -3,14 +3,16 @@
 // Used by Members.rc
 //
 #define IDC_MYICON                      2
-#define IDD_MEMBERS_DIALOG              102
-#define IDS_APP_TITLE                   103
-#define IDD_ABOUTBOX                    103
-#define IDM_ABOUT                       104
-#define IDM_EXIT                        105
-#define IDI_MEMBERS                     107
-#define IDI_SMALL                       108
-#define IDC_MEMBERS                     109
+#define IDD_MEMBERS_DIALOG              101
+#define IDS_APP_TITLE                   102
+#define IDD_GETTING_STARTED				103
+#define IDD_ABOUTBOX                    104
+#define IDM_GETTING_STARTED				105
+#define IDM_ABOUT                       106
+#define IDM_EXIT                        107
+#define IDI_MEMBERS                     108
+#define IDI_SMALL                       109
+#define IDC_MEMBERS                     110
 #define IDR_MAINFRAME                   128
 #define ID_MEMBER_ADD                   32772
 #define ID_MEMBER_REMOVE                32773
