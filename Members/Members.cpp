@@ -769,6 +769,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             
             }
             break;
+            case ID_MEMBER_DELETEALL:
+                {
+                // Ask user to confirm with OK and Cancel buttons
+                int res = MessageBoxW(hWnd,
+                    L"All members will be deleted from the database. This action cannot be undone.\n\nDo you want to proceed?",
+                    L"Warning",
+                    MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2);
+
+                if (res != IDOK) {
+                    // User cancelled -> do nothing
+                    break;
+                }
+
+                const char* sql = "DELETE FROM Members;";
+                if (sqlite3_open(filePath.c_str(), &db) != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to open database", MB_OK | MB_ICONERROR);
+                    return 0;
+                }
+                rc = sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
+                if (rc != SQLITE_OK) {
+                    MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to delete all members: ", MB_OK | MB_ICONERROR);
+                }
+                sqlite3_close(db);
+                for (int i = 0; i < 500; ++i) {
+                    memberList[i].clear();
+                }
+                currentPage = 0;
+                LoadMembers(currentPage);
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to display the rows
+            }
+            break;
             case IDC_MORE_BUTTON:
             {
                 currentPage++;

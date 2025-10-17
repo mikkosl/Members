@@ -18,7 +18,7 @@
 #define ID_FILE_OPEN					32774
 #define ID_FILE_IMPORT                  32775
 #define ID_FILE_EXPORT                  32776
-#define ID_MEMBER_DELETAALL             32777
+#define ID_MEMBER_DELETEALL             32777
 #define ID_MEMBER_UPDATE                32778
 #define IDC_STATIC                      -1
 
