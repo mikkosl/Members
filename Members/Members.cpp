@@ -1115,16 +1115,14 @@ void LoadMembers(int page) {
         }
         sqlite3_finalize(countStmt);
     } else {
-        // If count fails, keep totalMembers as 0 (or you may handle the error)
         sqlite3_finalize(countStmt);
     }
 
-    // Alphabetical order, case-insensitive.
+    // Load entire ordered list into memberList (starting at index 0)
     const char* sql =
         "SELECT surname, firstName, municipality "
         "FROM Members "
-        "ORDER BY surname COLLATE NOCASE, firstName COLLATE NOCASE, municipality COLLATE NOCASE "
-        "LIMIT ? OFFSET ?;";
+        "ORDER BY surname COLLATE NOCASE, firstName COLLATE NOCASE, municipality COLLATE NOCASE;";
 
     if (sqlite3_prepare_v2(localDb, sql, -1, &localStmt, nullptr) != SQLITE_OK) {
         MessageBox(nullptr, utf8ToWstring(sqlite3_errmsg(localDb)).c_str(), L"Failed to prepare statement", MB_OK | MB_ICONERROR);
@@ -1132,10 +1130,7 @@ void LoadMembers(int page) {
         return;
     }
 
-    sqlite3_bind_int(localStmt, 1, MEMBERS_PER_PAGE);
-    sqlite3_bind_int(localStmt, 2, page * MEMBERS_PER_PAGE);
-
-    int i = page * MEMBERS_PER_PAGE;
+    int i = 0;
     while (sqlite3_step(localStmt) == SQLITE_ROW && i < 500) {
         const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 0));
         const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 1));
