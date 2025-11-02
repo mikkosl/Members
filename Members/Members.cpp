@@ -301,6 +301,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
             }
             break;
+            case ID_FILE_CLOSE:
+            {
+                sqlite3_close(db);
+                for (int j = 0; j < 500; ++j) {
+                    memberList[j].clear();
+                }
+                currentPage = 0;
+                InvalidateRect(hWnd, NULL, TRUE);   // Force a repaint to clear the rows
+            }
+            break;
             case ID_FILE_IMPORT:
             {
                 OPENFILENAME ofn = { 0 };
@@ -885,7 +895,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (endIdx < totalMembers) {
                 if (!hMoreButton) {
                     hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                        600, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
+                        700, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
                 } else {
                     ShowWindow(hMoreButton, SW_SHOW);
                 }
@@ -896,7 +906,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Handle the Back button: hide on first 7 pages (currentPage < 7), show otherwise
             if (!hBackButton) {
                 hBackButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    700, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
+                    600, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
             }
             if (currentPage == 0) {
                 ShowWindow(hBackButton, SW_HIDE);
