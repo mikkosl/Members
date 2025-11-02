@@ -14,15 +14,14 @@
 #define IDI_SMALL                       109
 #define IDC_MEMBERS                     110
 #define IDR_MAINFRAME                   128
-#define ID_MEMBER_ADD                   32771
-#define ID_MEMBER_REMOVE                32772
-#define ID_MEMBER_UPDATE                32773
-#define ID_MEMBER_DELETEALL             32774
-#define ID_FILE_CREATE					32775
-#define ID_FILE_OPEN					32776
-#define ID_FILE_CLOSE					32777
-#define ID_FILE_IMPORT                  32778
-#define ID_FILE_EXPORT                  32779
+#define ID_MEMBER_ADD                   32772
+#define ID_MEMBER_REMOVE                32773
+#define ID_FILE_CREATE					32779
+#define ID_FILE_OPEN					32774
+#define ID_FILE_IMPORT                  32775
+#define ID_FILE_EXPORT                  32776
+#define ID_MEMBER_DELETEALL             32777
+#define ID_MEMBER_UPDATE                32778
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
