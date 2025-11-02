@@ -10,7 +10,7 @@
 #include <fstream>
 #include <sstream>
 #include <Windows.h>
-#include <sqlite3.h>
+#include "sqlite3.h"
 #include <iostream>
 #include <string>
 #include <cwchar>
