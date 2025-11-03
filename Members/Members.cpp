@@ -441,7 +441,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 hAddButton = CreateWindow(L"BUTTON", L"Add Member",
                     WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                    610, 170, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
+                    660, 170, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
             }
             break;
             case IDC_ADD_BUTTON:
@@ -531,7 +531,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
 
                 hRemoveButton = CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                    610, 170, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
+                    660, 170, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
             }
             break;
             case IDC_REMOVE_BUTTON:
@@ -607,7 +607,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 if (!hUpdateButton) {
                     hUpdateButton = CreateWindow(L"BUTTON", L"Update Member", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                        610, 170, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL);
+                        660, 170, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL);
                 }
             }
             break;
