@@ -4,21 +4,10 @@
 #include "framework.h"
 #include "Members.h"
 #include <string>
-#include <locale>
-#include <vector>
-#include <commdlg.h> // Add this at the top of your file
+#include <commdlg.h>
 #include <fstream>
 #include <sstream>
-#include <Windows.h>
 #include "sqlite3.h"
-#include <iostream>
-#include <string>
-#include <cwchar>
-#include <cstdlib>
-#include <stdexcept>
-#include <cstdio>
-#include <memory>
-#include <array>
 
 #define MAX_LOADSTRING      100
 #define MAX_MEMBERS         1000
@@ -254,8 +243,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    std::wstring last, first, town;
-
     switch (message)
     {
     case WM_COMMAND:
@@ -455,14 +442,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 hAddButton = CreateWindow(L"BUTTON", L"Add Member",
                     WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     610, 170, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
-
-                // Make Row static (non-editable) while adding
-                HWND rowEdit = GetDlgItem(hWnd, IDC_ROW);
-                if (rowEdit) {
-                    SendMessage(rowEdit, EM_SETREADONLY, TRUE, 0);
-                    EnableWindow(rowEdit, FALSE);
-                    SetWindowTextW(rowEdit, L"");
-                }
             }
             break;
             case IDC_ADD_BUTTON:
@@ -553,13 +532,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 hRemoveButton = CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     610, 170, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
-
-                // Make Row editable again for remove/search scenarios
-                HWND rowEdit = GetDlgItem(hWnd, IDC_ROW);
-                if (rowEdit) {
-                    SendMessage(rowEdit, EM_SETREADONLY, FALSE, 0);
-                    EnableWindow(rowEdit, TRUE);
-                }
             }
             break;
             case IDC_REMOVE_BUTTON:
@@ -636,13 +608,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (!hUpdateButton) {
                     hUpdateButton = CreateWindow(L"BUTTON", L"Update Member", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                         610, 170, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL);
-                }
-
-                // Make Row static (non-editable) while updating
-                HWND rowEdit = GetDlgItem(hWnd, IDC_ROW);
-                if (rowEdit) {
-                    SendMessage(rowEdit, EM_SETREADONLY, TRUE, 0);
-                    EnableWindow(rowEdit, FALSE);
                 }
             }
             break;
@@ -1023,7 +988,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (!hMoreButton) {
                 hMoreButton = CreateWindow(L"BUTTON", L"More",
                     WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                    700, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
+                    760, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
             }
             ShowWindow(hMoreButton, SW_SHOW);
             EnableWindow(hMoreButton, endIdx < totalMembers);
@@ -1032,7 +997,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (!hBackButton) {
                 hBackButton = CreateWindow(L"BUTTON", L"Back",
                     WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                    600, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
+                    660, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
             }
             ShowWindow(hBackButton, SW_SHOW);
             EnableWindow(hBackButton, currentPage > 0);
@@ -1040,32 +1005,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hOld = GetDlgItem(hWnd, IDC_SURNAME);
             if (!hOld) {
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
-                    600, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 20, 90, 20, hWnd, NULL, NULL, NULL);
                 hSurname = CreateWindow(L"EDIT", L"",
                     WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
-                    600, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 50, 90, 20, hWnd, NULL, NULL, NULL);
                 hFirstName = CreateWindow(L"EDIT", L"",
                     WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
-                    600, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 80, 90, 20, hWnd, NULL, NULL, NULL);
                 hMunicipality = CreateWindow(L"EDIT", L"",
                     WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
-                    600, 110, 80, 20, hWnd, NULL, NULL, NULL);
+                    600, 110, 90, 20, hWnd, NULL, NULL, NULL);
                 hRow = CreateWindow(L"EDIT", L"",
                     WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
 
                 hSearchButton = CreateWindow(L"BUTTON", L"Search Member",
                     WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                    610, 140, 200, 30, hWnd, (HMENU)IDC_SEARCH_BUTTON, NULL, NULL);
+                    660, 140, 200, 30, hWnd, (HMENU)IDC_SEARCH_BUTTON, NULL, NULL);
             }
        
             EndPaint(hWnd, &ps);
@@ -1255,6 +1220,7 @@ void ExportMembersToCSV(const std::wstring& csvPath) {
 }
 
 void LoadMembers(int page) {
+    UNREFERENCED_PARAMETER(page);
     // clear existing
     for (int j = 0; j < MAX_MEMBERS; ++j) memberList[j].clear();
     totalMembers = 0;
