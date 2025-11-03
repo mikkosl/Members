@@ -142,10 +142,35 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         if (TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
             continue;
 
+        // Tab focus cycling (already present)
         if (msg.message == WM_KEYDOWN && msg.wParam == VK_TAB) {
             const bool backwards = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
             if (HWND next = NextTabStop(backwards)) {
                 SetFocus(next);
+                continue; // handled
+            }
+        }
+
+        // Enter should press the focused button, or a sensible default when in edits
+        if (msg.message == WM_KEYDOWN && msg.wParam == VK_RETURN) {
+            HWND hFocus = GetFocus();
+            wchar_t cls[32] = {};
+            if (hFocus && GetClassNameW(hFocus, cls, _countof(cls))) {
+                if (_wcsicmp(cls, L"BUTTON") == 0) {
+                    SendMessageW(hFocus, BM_CLICK, 0, 0);
+                    continue; // handled
+                }
+            }
+            // Focus is not on a button: click a visible/enabled primary action
+            auto clickIf = [](HWND h) -> bool {
+                if (h && IsWindow(h) && IsWindowVisible(h) && IsWindowEnabled(h)) {
+                    SendMessageW(h, BM_CLICK, 0, 0);
+                    return true;
+                }
+                return false;
+            };
+            // Prefer Update, then Add, then Remove, then Search
+            if (clickIf(hUpdateButton) || clickIf(hAddButton) || clickIf(hRemoveButton) || clickIf(hSearchButton)) {
                 continue; // handled
             }
         }
