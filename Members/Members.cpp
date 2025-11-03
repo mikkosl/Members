@@ -863,7 +863,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             int x = 20;
             int y = 10;
 			std::wstring rowStr;
-
+            HWND hOld;
             int startIdx = currentPage * MEMBERS_PER_PAGE;
             int endIdx = startIdx + MEMBERS_PER_PAGE;
             if (endIdx > totalMembers) endIdx = totalMembers;
@@ -886,29 +886,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 TextOutW(hdc, x, y, rowStr.c_str(), (int)memberList[i].length() + 7);
                 y += 20; // Move down for next line
             }
-            // After drawing, handle the More button:
-            if (endIdx < totalMembers) {
-                if (!hMoreButton) {
-                    hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                        700, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
-                } else {
-                    ShowWindow(hMoreButton, SW_SHOW);
-                }
-            } else {
-                if (hMoreButton) ShowWindow(hMoreButton, SW_HIDE);
+            // After drawing, handle the More button: always visible; disabled on last page
+            if (!hMoreButton) {
+                hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    700, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
             }
+            ShowWindow(hMoreButton, SW_SHOW);
+            EnableWindow(hMoreButton, endIdx < totalMembers);
 
-            // Handle the Back button: hide on first 7 pages (currentPage < 7), show otherwise
+            // Handle the Back button: always visible; disabled on first page
             if (!hBackButton) {
                 hBackButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                     600, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
             }
-            if (currentPage == 0) {
-                ShowWindow(hBackButton, SW_HIDE);
-            } else {
-                ShowWindow(hBackButton, SW_SHOW);
-            }
+            ShowWindow(hBackButton, SW_SHOW);
+            EnableWindow(hBackButton, currentPage > 0);
 
+            hOld = GetDlgItem(hWnd, IDC_SURNAME);
+            if (!hOld) {
+                CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
+                    600, 20, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
+                    600, 50, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
+                    600, 80, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"STATIC", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
+
+                CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
+                    600, 110, 80, 20, hWnd, NULL, NULL, NULL);
+                CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                    710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
+
+                hSearchButton = CreateWindow(L"BUTTON", L"Search Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    610, 140, 200, 30, hWnd, (HMENU)IDC_SEARCH_BUTTON, NULL, NULL);
+            }
+       
             EndPaint(hWnd, &ps);
         }
         break;
