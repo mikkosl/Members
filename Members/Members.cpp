@@ -68,6 +68,30 @@ void ImportMembersFromCSV(const std::wstring& csvPath);
 void ExportMembersToCSV(const std::wstring& csvPath);
 void LoadMembers(int page);
 
+// After globals, add a small helper to compute the next tab stop
+static HWND NextTabStop(bool backwards) {
+    HWND order[] = {
+        hSurname, hFirstName, hMunicipality, hRow,
+        hSearchButton, hAddButton, hUpdateButton, hRemoveButton,
+        hBackButton, hMoreButton
+    };
+    constexpr int N = sizeof(order) / sizeof(order[0]);
+    HWND focused = GetFocus();
+
+    int start = -1;
+    for (int i = 0; i < N; ++i) {
+        if (order[i] == focused) { start = i; break; }
+    }
+
+    int idx = start;
+    for (int step = 0; step < N; ++step) {
+        idx = backwards ? ((idx < 0 ? N : idx) - 1 + N) % N : (idx + 1) % N;
+        HWND h = order[idx];
+        if (h && IsWindowVisible(h) && IsWindowEnabled(h)) return h;
+    }
+    return nullptr;
+}
+
 std::string toUtf8(const wchar_t* wstr) {
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
     std::string result(size_needed, 0);
@@ -115,11 +139,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+        if (TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+            continue;
+
+        if (msg.message == WM_KEYDOWN && msg.wParam == VK_TAB) {
+            const bool backwards = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+            if (HWND next = NextTabStop(backwards)) {
+                SetFocus(next);
+                continue; // handled
+            }
         }
+
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
     }
     
     if (db) {
@@ -395,7 +427,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 hOld = GetDlgItem(hWnd, IDC_REMOVE_BUTTON);
                 if (hOld) DestroyWindow(hOld);
 
-                hAddButton = CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                hAddButton = CreateWindow(L"BUTTON", L"Add Member",
+                    WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     610, 170, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
 
                 // Make Row static (non-editable) while adding
@@ -493,7 +526,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 hOld = GetDlgItem(hWnd, IDC_ADD_BUTTON);
                 if (hOld) DestroyWindow(hOld);
 
-                hRemoveButton = CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                hRemoveButton = CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     610, 170, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
 
                 // Make Row editable again for remove/search scenarios
@@ -576,7 +609,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
 
                 if (!hUpdateButton) {
-                    hUpdateButton = CreateWindow(L"BUTTON", L"Update Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                    hUpdateButton = CreateWindow(L"BUTTON", L"Update Member", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                         610, 170, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL);
                 }
 
@@ -963,7 +996,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             // After drawing, handle the More button: always visible; disabled on last page
             if (!hMoreButton) {
-                hMoreButton = CreateWindow(L"BUTTON", L"More", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                hMoreButton = CreateWindow(L"BUTTON", L"More",
+                    WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     700, 350, 100, 30, hWnd, (HMENU)IDC_MORE_BUTTON, NULL, NULL);
             }
             ShowWindow(hMoreButton, SW_SHOW);
@@ -971,7 +1005,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             // Handle the Back button: always visible; disabled on first page
             if (!hBackButton) {
-                hBackButton = CreateWindow(L"BUTTON", L"Back", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                hBackButton = CreateWindow(L"BUTTON", L"Back",
+                    WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     600, 350, 100, 30, hWnd, (HMENU)IDC_BACK_BUTTON, NULL, NULL);
             }
             ShowWindow(hBackButton, SW_SHOW);
@@ -981,25 +1016,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (!hOld) {
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
                     600, 20, 80, 20, hWnd, NULL, NULL, NULL);
-                hSurname = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                hSurname = CreateWindow(L"EDIT", L"",
+                    WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 20, 200, 20, hWnd, (HMENU)IDC_SURNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"First name:", WS_VISIBLE | WS_CHILD,
                     600, 50, 80, 20, hWnd, NULL, NULL, NULL);
-                hFirstName = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                hFirstName = CreateWindow(L"EDIT", L"",
+                    WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 50, 200, 20, hWnd, (HMENU)IDC_FIRSTNAME, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Municipality:", WS_VISIBLE | WS_CHILD,
                     600, 80, 80, 20, hWnd, NULL, NULL, NULL);
-                hMunicipality = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                hMunicipality = CreateWindow(L"EDIT", L"",
+                    WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 80, 200, 20, hWnd, (HMENU)IDC_MUNICIPALITY, NULL, NULL);
 
                 CreateWindow(L"STATIC", L"Row:", WS_VISIBLE | WS_CHILD,
                     600, 110, 80, 20, hWnd, NULL, NULL, NULL);
-                hRow = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
+                hRow = CreateWindow(L"EDIT", L"",
+                    WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
 
-                hSearchButton = CreateWindow(L"BUTTON", L"Search Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                hSearchButton = CreateWindow(L"BUTTON", L"Search Member",
+                    WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON,
                     610, 140, 200, 30, hWnd, (HMENU)IDC_SEARCH_BUTTON, NULL, NULL);
             }
        
