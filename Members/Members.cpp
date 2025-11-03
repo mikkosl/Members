@@ -20,23 +20,24 @@
 #include <memory>
 #include <array>
 
-#define MAX_LOADSTRING 100
-#define IDC_FIRSTNAME 201
-#define IDC_SURNAME   202
-#define IDC_MUNICIPALITY      203
-#define IDC_ROW       204
-#define IDC_ADD_BUTTON 205
-#define IDC_REMOVE_BUTTON 206
-#define IDC_MORE_BUTTON 207
-#define IDC_BACK_BUTTON 208
-#define IDC_SEARCH_BUTTON 209
-#define IDC_UPDATE_BUTTON 218
+#define MAX_LOADSTRING      100
+#define MAX_MEMBERS         1000
+#define IDC_FIRSTNAME       201
+#define IDC_SURNAME         202
+#define IDC_MUNICIPALITY    203
+#define IDC_ROW             204
+#define IDC_ADD_BUTTON      205
+#define IDC_REMOVE_BUTTON   206
+#define IDC_MORE_BUTTON     207
+#define IDC_BACK_BUTTON     208
+#define IDC_SEARCH_BUTTON   209
+#define IDC_UPDATE_BUTTON   210
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
-std::wstring memberList[500];
+std::wstring memberList[MAX_MEMBERS];
 int rc;
 sqlite3_stmt* stmt = nullptr;
 std::string filePath;
@@ -284,7 +285,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         return 0;
                     }
                     int i = 0;
-                    for (int j = 0; j < 500; ++j) {
+                    for (int j = 0; j < MAX_MEMBERS; ++j) {
                         memberList[j].clear();
                     }
                     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
@@ -304,7 +305,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case ID_FILE_CLOSE:
             {
                 sqlite3_close(db);
-                for (int j = 0; j < 500; ++j) {
+                for (int j = 0; j < MAX_MEMBERS; ++j) {
                     memberList[j].clear();
                 }
                 currentPage = 0;
@@ -362,9 +363,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_REMOVE_BUTTON);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_SEARCH_BUTTON);
-                if (hOld) DestroyWindow(hOld);
-
+      
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
                     600, 20, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
@@ -386,7 +385,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
 
                 hAddButton = CreateWindow(L"BUTTON", L"Add Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    610, 140, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
+                    610, 170, 200, 30, hWnd, (HMENU)IDC_ADD_BUTTON, NULL, NULL);
             break;
             case IDC_ADD_BUTTON:
             {
@@ -450,9 +449,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ADD_BUTTON);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_SEARCH_BUTTON);
-                if (hOld) DestroyWindow(hOld);
-
+             
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
                     600, 20, 80, 20, hWnd, NULL, NULL, NULL);
                 CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
@@ -474,7 +471,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
                 
                 hRemoveButton = CreateWindow(L"BUTTON", L"Remove Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    610, 140, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
+                    610, 170, 200, 30, hWnd, (HMENU)IDC_REMOVE_BUTTON, NULL, NULL);
             }
             break;
             case IDC_REMOVE_BUTTON:
@@ -653,7 +650,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 if (row[0] == L'\0') {
                     rowNumber = 0;
-                    while (rowNumber < 500 && !memberList[rowNumber].empty()) {
+                    while (rowNumber < MAX_MEMBERS && !memberList[rowNumber].empty()) {
                         std::wstring wlast, wfirst, wtown;
                         ParseMemberEntry(memberList[rowNumber], wlast, wfirst, wtown);
                         if (wlast == surnameW) {
@@ -673,9 +670,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (hOld) DestroyWindow(hOld);
                 hOld = GetDlgItem(hWnd, IDC_ROW);
                 if (hOld) DestroyWindow(hOld);
-                hOld = GetDlgItem(hWnd, IDC_SEARCH_BUTTON);
-                if (hOld) DestroyWindow(hOld);
-
+           
                 CreateWindow(L"STATIC", L"Surname:", WS_VISIBLE | WS_CHILD,
                     600, 20, 80, 20, hWnd, NULL, NULL, NULL);
                 hSurname = CreateWindow(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER,
@@ -697,7 +692,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     710, 110, 200, 20, hWnd, (HMENU)IDC_ROW, NULL, NULL);
                     
                 hUpdateButton = CreateWindow(L"BUTTON", L"Update Member", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                    610, 140, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL); 
+                    610, 170, 200, 30, hWnd, (HMENU)IDC_UPDATE_BUTTON, NULL, NULL); 
              
                 SetWindowTextW(hSurname, surnameW.c_str());
                 SetWindowTextW(hFirstName, firstNameW.c_str());
@@ -821,7 +816,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     MessageBox(hWnd, utf8ToWstring(sqlite3_errmsg(db)).c_str(), L"Failed to delete all members: ", MB_OK | MB_ICONERROR);
                 }
                 sqlite3_close(db);
-                for (int i = 0; i < 500; ++i) {
+                for (int i = 0; i < MAX_MEMBERS; ++i) {
                     memberList[i].clear();
                 }
                 currentPage = 0;
@@ -874,7 +869,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (endIdx > totalMembers) endIdx = totalMembers;
 
             // Corrected bounds-checked version
-            for (int i = startIdx; i < endIdx && i >= 0 && i < 500 && !memberList[i].empty(); ++i) {
+            for (int i = startIdx; i < endIdx && i >= 0 && i < MAX_MEMBERS && !memberList[i].empty(); ++i) {
                 if (i < 9) rowStr = L"[00" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else if (i < 99) rowStr = L"[0" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
                 else rowStr = L"[" + std::to_wstring(i + 1) + L"]: " + memberList[i].c_str();
@@ -993,8 +988,8 @@ void ImportMembersFromCSV(const std::wstring& csvPath) {
     }
     std::wstring line;
     int i = 0;
-    for (; i < 500 && !memberList[i].empty(); ++i);
-    while (std::getline(file, line) && i < 500) {
+    for (; i < MAX_MEMBERS && !memberList[i].empty(); ++i);
+    while (std::getline(file, line) && i < MAX_MEMBERS) {
         std::wstringstream ss(line);
         std::wstring surname, firstname, municipality;
         if (std::getline(ss, surname, L';') &&
@@ -1102,7 +1097,7 @@ void ExportMembersToCSV(const std::wstring& csvPath) {
 
 void LoadMembers(int page) {
     // clear existing
-    for (int j = 0; j < 500; ++j) memberList[j].clear();
+    for (int j = 0; j < MAX_MEMBERS; ++j) memberList[j].clear();
     totalMembers = 0;
     if (filePath.empty()) return;
 
@@ -1140,7 +1135,7 @@ void LoadMembers(int page) {
     }
 
     int i = 0;
-    while (sqlite3_step(localStmt) == SQLITE_ROW && i < 500) {
+    while (sqlite3_step(localStmt) == SQLITE_ROW && i < MAX_MEMBERS) {
         const char* surname = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 0));
         const char* firstName = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 1));
         const char* municipality = reinterpret_cast<const char*>(sqlite3_column_text(localStmt, 2));
